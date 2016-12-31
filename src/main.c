@@ -10,8 +10,6 @@
 #include "sibilance.h"
 
 
-void SaveFilterState(void);
-
 
 _FGS(GWRP_OFF & GCP_OFF);
 _FOSCSEL(FNOSC_FRC);
@@ -32,9 +30,7 @@ fractional QBuf[FRAME_SIZE];
 fractional IOsc[FRAME_SIZE];
 fractional QOsc[FRAME_SIZE];
 
-unsigned int SSB;
-int EQ;
-
+int freq;
 int flashes;
 int flash_timer;
 
@@ -83,10 +79,12 @@ int main(void)
 
    InitGen();
 
+   freq = 0;
+   
    // SetSineFreq(500);
    SetShiftFreq(500);
   
-   InitSibil();
+   InitSibil(freq);
 
 	/* Main processing loop. Executed for every input and 
 	 * output frame	*/
@@ -113,39 +111,57 @@ int main(void)
 			/* Write the frame to the output	*/
 			WM8510Write (codecHandle,outBuf,FRAME_SIZE);
 		
-         ++flash_timer;
+			if(CheckSwitchS1())
+			{
+            ++freq;			   
+			   if (freq > 3)
+			   {
+			      freq = 0;
+			   }
+         
+            InitSibil(freq);
 
-         if (flash_timer & 0x0010)
+			   switch (freq)
+			   {
+			      case 0:
+                  SetShiftFreq(500);
+                  break;
+			      case 1:
+                  SetShiftFreq(600);
+                  break;
+			      case 2:
+                  SetShiftFreq(700);
+                  break;
+			      case 3:
+                  SetShiftFreq(800);
+                  break;
+			   }
+            flash_timer = 255;
+         }
+
+         
+         if (++flash_timer >= 250)
          {
-            GREEN_LED = SASK_LED_ON;
+            flash_timer = 0;
+            flashes = freq+1;
          }
          else
          {
-            GREEN_LED = SASK_LED_OFF;
+            if ((flash_timer & 0x001f) == 0x0010)
+            {
+               if (flashes)
+               {
+                  --flashes;
+                  GREEN_LED = SASK_LED_ON;
+               }
+            }
+            else if ((flash_timer & 0x001f) == 0)
+            {
+               GREEN_LED = SASK_LED_OFF;
+            }
          }
-	}
+	}	
 	
 }// main
 
-
-void SaveFilterState(void)
-{
-   long address = 0L;
-   
-   /* Erase sector. Each sector is 0xFFFF long	*/
-   AT25F4096IoCtl(pFlashMemoryHandle,AT25F4096DRV_WRITE_ENABLE,0);	
-   AT25F4096IoCtl(pFlashMemoryHandle,AT25F4096DRV_SECTOR_ERASE,(void *)&address);	
-   while(AT25F4096IsBusy(pFlashMemoryHandle));
-   
-   AT25F4096IoCtl(pFlashMemoryHandle,AT25F4096DRV_WRITE_ENABLE,0);
-   AT25F4096Write(pFlashMemoryHandle, address, (char *) &SSB, sizeof(int));
-   while(AT25F4096IsBusy(pFlashMemoryHandle));
-
-   address = 2L;
-
-   AT25F4096IoCtl(pFlashMemoryHandle,AT25F4096DRV_WRITE_ENABLE,0);
-   AT25F4096Write(pFlashMemoryHandle, address, (char *) &EQ, sizeof(int));
-   while(AT25F4096IsBusy(pFlashMemoryHandle));
-   
-}// SaveFilterState
 

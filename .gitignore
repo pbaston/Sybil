@@ -1,4 +1,6 @@
 
+*.cof
+*.map
+
 obj/
-bin/
 src/*.txt

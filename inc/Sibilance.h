@@ -32,7 +32,7 @@
 //
 //************************************************************************
 
-void InitSibil(void);
+void InitSibil(int freq);
 void ProcSibil( fractional* pIn, fractional* IOut, fractional* QOut);
 
 
